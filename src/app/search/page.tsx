@@ -55,7 +55,7 @@ export default function SearchPage() {
               }}
             >
               <Tab label="Search By Name" />
-              <Tab label="Search By Multi Name" />
+              <Tab label="Search By Multiple Names" />
               <Tab label="Search By Type" />
             </Tabs>
           </Paper>
