@@ -1,74 +1,106 @@
-"use client";
+﻿"use client";
 
 import SearchIcon from "@mui/icons-material/Search";
-import { Alert, Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
-import { useMemo, useState } from "react";
+import {
+  Alert,
+  Autocomplete,
+  Box,
+  Button,
+  Chip,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
+import { useState } from "react";
 
 import { PokemonTable } from "@/app/components/PokemonTable";
+import { CACHE_CONFIG } from "@/lib/cache-config";
+import { PANEL_SX, getErrorMessage } from "@/lib/utils";
 import { trpc } from "@/trpc/client";
 
-const panelSx = {
-  borderRadius: 3,
-  p: { xs: 2.5, md: 3 },
-  border: "1px solid",
-  borderColor: "divider",
-  transition: "box-shadow 200ms ease, transform 200ms ease",
-  "&:hover": { boxShadow: 4, transform: "translateY(-2px)" },
-};
-
-const parseNames = (input: string) =>
-  input
-    .split(",")
-    .map((name) => name.trim())
-    .filter(Boolean);
-
-const getErrorMessage = (error: unknown): string => {
-  if (!error) return "";
-  if (error instanceof Error) return error.message;
-  if (typeof error === "object" && error !== null && "message" in error) {
-    return (error as Record<string, unknown>).message as string;
-  }
-  return "An error occurred. Please try again.";
+const dedupeNames = (names: string[]) => {
+  const seen = new Set<string>();
+  return names.filter((name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return false;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 };
 
 export function MultiNameSearchPanel() {
-  const [multiInput, setMultiInput] = useState("");
+  const [selectedNames, setSelectedNames] = useState<string[]>([]);
+  const [inputValue, setInputValue] = useState("");
   const [submittedNames, setSubmittedNames] = useState<string[]>([]);
-
-  const parsedNames = useMemo(() => parseNames(multiInput), [multiInput]);
 
   const multiNameQuery = trpc.pokemon.getByNames.useQuery(
     { names: submittedNames },
-    { enabled: submittedNames.length > 0, retry: false },
+    { ...CACHE_CONFIG.search, enabled: submittedNames.length > 0, retry: false },
   );
 
+  const addPendingName = () => {
+    const pending = inputValue.trim();
+    if (!pending) return selectedNames;
+    const next = dedupeNames([...selectedNames, pending]);
+    setSelectedNames(next);
+    setInputValue("");
+    return next;
+  };
+
   return (
-    <Paper sx={panelSx}>
+    <Paper sx={PANEL_SX}>
       <Stack spacing={2.5}>
         <Typography variant="h6" sx={{ fontWeight: 800 }}>
           Search By Multi Name
         </Typography>
+
         <Box
           component="form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSubmittedNames(parsedNames);
+          onSubmit={(event) => {
+            event.preventDefault();
+            const names = addPendingName();
+            setSubmittedNames(names);
           }}
           sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}
         >
-          <TextField
-            fullWidth
-            label="Type multiple Pokemon names separated by commas"
-            placeholder="pikachu, charizard, bulbasaur"
-            value={multiInput}
-            onChange={(e) => setMultiInput(e.target.value)}
-            helperText="Example: pikachu, charizard, bulbasaur"
+          <Autocomplete
+            multiple
+            freeSolo
+            options={[]}
+            value={selectedNames}
+            inputValue={inputValue}
+            onInputChange={(_, nextInput) => setInputValue(nextInput)}
+            onChange={(_, nextValues) => setSelectedNames(dedupeNames(nextValues))}
+            filterOptions={(options) => options}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip label={option} {...getTagProps({ index })} key={option} />
+              ))
+            }
+            sx={{ flex: 1, minWidth: 300 }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Type Pokemon names and press Enter"
+                placeholder="pikachu"
+                helperText="Press Enter after each name to add it."
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && inputValue.trim()) {
+                    event.preventDefault();
+                    addPendingName();
+                  }
+                }}
+              />
+            )}
           />
           <Button
             type="submit"
             variant="contained"
             startIcon={<SearchIcon />}
-            disabled={parsedNames.length === 0 || multiNameQuery.isLoading}
+            disabled={multiNameQuery.isLoading || (selectedNames.length === 0 && !inputValue.trim())}
             sx={{
               backgroundColor: "primary.main",
               "&:hover": { backgroundColor: "primary.dark", boxShadow: 6 },
@@ -85,7 +117,7 @@ export function MultiNameSearchPanel() {
             error={multiNameQuery.error ? new Error(getErrorMessage(multiNameQuery.error)) : null}
           />
         ) : (
-          <Alert severity="info">Enter comma-separated names and click Search to see results.</Alert>
+          <Alert severity="info">Type names, press Enter to add chips, then click Search.</Alert>
         )}
       </Stack>
     </Paper>

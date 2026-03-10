@@ -4,7 +4,8 @@ import superjson from "superjson";
 
 import { db } from "@/server/db";
 
-export const createTRPCContext = async (_opts: FetchCreateContextFnOptions) => {
+export const createTRPCContext = async (opts: FetchCreateContextFnOptions) => {
+  void opts;
   return {
     db,
   };

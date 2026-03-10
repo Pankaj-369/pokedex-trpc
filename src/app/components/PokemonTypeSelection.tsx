@@ -1,34 +1,15 @@
-"use client";
+﻿"use client";
 
 import {
+  Box,
   FormControl,
   InputLabel,
   MenuItem,
   Select,
   SelectChangeEvent,
-  Box,
 } from "@mui/material";
 
-const POKEMON_TYPES = [
-  "All Types",
-  "grass",
-  "poison",
-  "fire",
-  "flying",
-  "water",
-  "electric",
-  "normal",
-  "ground",
-  "bug",
-  "rock",
-  "ghost",
-  "steel",
-  "psychic",
-  "ice",
-  "dragon",
-  "dark",
-  "fairy",
-];
+import { POKEMON_TYPES } from "@/lib/utils";
 
 export type PokemonTypeSelectionProps = {
   selectedType: string | undefined;

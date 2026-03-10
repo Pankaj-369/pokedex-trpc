@@ -1,10 +1,10 @@
-import { QueryClient } from "@tanstack/react-query";
+﻿import { QueryClient } from "@tanstack/react-query";
+
+import { CACHE_CONFIG } from "@/lib/cache-config";
 
 export const makeQueryClient = () =>
   new QueryClient({
     defaultOptions: {
-      queries: {
-        staleTime: 30 * 1000,
-      },
+      queries: CACHE_CONFIG.default,
     },
   });

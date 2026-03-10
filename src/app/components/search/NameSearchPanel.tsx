@@ -1,10 +1,8 @@
-"use client";
+﻿"use client";
 
-import SearchIcon from "@mui/icons-material/Search";
 import {
   Alert,
   Box,
-  Button,
   Paper,
   Stack,
   Table,
@@ -12,32 +10,16 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  TextField,
   Typography,
 } from "@mui/material";
 import { useState } from "react";
 
+import { BaseSearchForm } from "@/app/components/BaseSearchForm";
 import { PokemonRow } from "@/app/components/PokemonRow";
 import { PokemonTable } from "@/app/components/PokemonTable";
+import { CACHE_CONFIG } from "@/lib/cache-config";
+import { PANEL_SX, getErrorMessage } from "@/lib/utils";
 import { trpc } from "@/trpc/client";
-
-const panelSx = {
-  borderRadius: 3,
-  p: { xs: 2.5, md: 3 },
-  border: "1px solid",
-  borderColor: "divider",
-  transition: "box-shadow 200ms ease, transform 200ms ease",
-  "&:hover": { boxShadow: 4, transform: "translateY(-2px)" },
-};
-
-const getErrorMessage = (error: unknown): string => {
-  if (!error) return "";
-  if (error instanceof Error) return error.message;
-  if (typeof error === "object" && error !== null && "message" in error) {
-    return (error as Record<string, unknown>).message as string;
-  }
-  return "An error occurred. Please try again.";
-};
 
 export function NameSearchPanel() {
   const [nameInput, setNameInput] = useState("");
@@ -45,43 +27,26 @@ export function NameSearchPanel() {
 
   const nameQuery = trpc.pokemon.getByName.useQuery(
     { name: submittedName },
-    { enabled: submittedName.length > 0, retry: false, staleTime: 10 * 60 * 1000 },
+    { ...CACHE_CONFIG.search, enabled: submittedName.length > 0, retry: false },
   );
 
   return (
-    <Paper sx={panelSx}>
+    <Paper sx={PANEL_SX}>
       <Stack spacing={2.5}>
         <Typography variant="h6" sx={{ fontWeight: 800 }}>
           Search By Name
         </Typography>
-        <Box
-          component="form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSubmittedName(nameInput.trim());
-          }}
-          sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}
-        >
-          <TextField
-            fullWidth
-            label="Type a Pokemon name..."
-            placeholder="Type a Pokemon name..."
-            value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
-          />
-          <Button
-            type="submit"
-            variant="contained"
-            startIcon={<SearchIcon />}
-            disabled={!nameInput.trim() || nameQuery.isLoading}
-            sx={{
-              backgroundColor: "secondary.main",
-              "&:hover": { backgroundColor: "secondary.dark", boxShadow: 6 },
-            }}
-          >
-            Search
-          </Button>
-        </Box>
+
+        <BaseSearchForm
+          label="Type a Pokemon name..."
+          placeholder="Type a Pokemon name..."
+          value={nameInput}
+          onChange={setNameInput}
+          onSubmit={(value) => setSubmittedName(value)}
+          isLoading={nameQuery.isLoading}
+          buttonText="Search"
+          buttonColor="secondary"
+        />
 
         {submittedName ? (
           nameQuery.error ? (
