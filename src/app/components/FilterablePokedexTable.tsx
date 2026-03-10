@@ -22,19 +22,27 @@ import {
 
 const ITEMS_PER_PAGE = 10;
 
-export function FilterablePokedexTable() {
+type FilterablePokedexTableProps = {
+  typeOnly?: boolean;
+};
+
+export function FilterablePokedexTable({ typeOnly = false }: FilterablePokedexTableProps) {
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedType, setSelectedType] = useState<string | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
+    if (typeOnly) {
+      return;
+    }
+
     const timer = setTimeout(() => {
       setDebouncedSearch(searchInput.trim());
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, [searchInput, typeOnly]);
 
   const {
     data: typeFilterData,
@@ -47,8 +55,9 @@ export function FilterablePokedexTable() {
       limit: ITEMS_PER_PAGE,
     },
     {
-      enabled: debouncedSearch.length === 0,
+      enabled: typeOnly || debouncedSearch.length === 0,
       staleTime: 5 * 60 * 1000,
+      placeholderData: (previousData) => previousData,
     },
   );
 
@@ -59,14 +68,14 @@ export function FilterablePokedexTable() {
   } = trpc.pokemon.getByName.useQuery(
     { name: debouncedSearch },
     {
-      enabled: debouncedSearch.length > 0,
+      enabled: !typeOnly && debouncedSearch.length > 0,
       retry: false,
       staleTime: 5 * 60 * 1000,
     },
   );
 
   const displayData = useMemo(() => {
-    if (debouncedSearch) {
+    if (!typeOnly && debouncedSearch) {
       return {
         pokemon: searchData ? [searchData] : [],
         pageCount: 1,
@@ -79,7 +88,7 @@ export function FilterablePokedexTable() {
       pageCount: typeFilterData?.pageCount ?? 1,
       currentPage: typeFilterData?.currentPage ?? 1,
     };
-  }, [debouncedSearch, searchData, typeFilterData]);
+  }, [debouncedSearch, searchData, typeFilterData, typeOnly]);
 
   const getErrorMessage = (error: unknown): string => {
     if (!error) return "";
@@ -109,73 +118,95 @@ export function FilterablePokedexTable() {
     },
   };
 
-  const isSearching = debouncedSearch.length > 0;
+  const isSearching = !typeOnly && debouncedSearch.length > 0;
   const isLoading = isSearching ? searchLoading : typeFilterLoading;
   const errorMessage = getErrorMessage(isSearching ? searchError : typeFilterError);
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography
-        variant="h4"
-        component="h1"
+    <Container maxWidth={typeOnly ? "xl" : "lg"} sx={{ py: typeOnly ? 0 : 4 }}>
+      {!typeOnly && (
+        <Typography
+          variant="h4"
+          component="h1"
+          sx={{
+            mb: 4,
+            fontWeight: 800,
+            color: "text.primary",
+            opacity: 0,
+            animation: "fadeUp 500ms ease forwards",
+          }}
+        >
+          Pokedex Explorer
+        </Typography>
+      )}
+
+      <Paper
+        elevation={0}
         sx={{
-          mb: 4,
-          fontWeight: 700,
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
+          p: 3,
+          mb: 3,
+          borderRadius: 3,
+          border: "1px solid #e9edf5",
+          transition: "box-shadow 200ms ease, transform 200ms ease",
+          "&:hover": { boxShadow: 4, transform: "translateY(-2px)" },
         }}
       >
-        Pokedex Explorer
-      </Typography>
-
-      <Paper elevation={1} sx={{ p: 3, mb: 4 }}>
         <Stack spacing={2}>
-          <Box
-            component="form"
-            onSubmit={handleSearch}
-            sx={{ display: "flex", gap: 2, alignItems: "flex-end" }}
-          >
-            <TextField
-              label="Search Pokemon by name"
-              variant="outlined"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="e.g., Bulbasaur"
-              sx={{ flex: 1 }}
-            />
-            {searchInput && (
-              <Button variant="outlined" onClick={handleClearSearch} disabled={isLoading}>
-                Clear
-              </Button>
-            )}
-            <Button
-              type="submit"
-              variant="contained"
-              startIcon={<SearchIcon />}
-              disabled={isLoading || !searchInput.trim()}
+          {!typeOnly && (
+            <Box
+              component="form"
+              onSubmit={handleSearch}
+              sx={{ display: "flex", gap: 2, alignItems: "flex-end", flexWrap: "wrap" }}
             >
-              Search
-            </Button>
-          </Box>
-
-          {!debouncedSearch && (
-            <Box>
-              <PokemonTypeSelection {...typeSelectionProps} />
+              <TextField
+                label="Search Pokemon by name"
+                variant="outlined"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="e.g., Bulbasaur"
+                sx={{ flex: 1, minWidth: 260 }}
+              />
+              {searchInput && (
+                <Button variant="outlined" onClick={handleClearSearch} disabled={isLoading}>
+                  Clear
+                </Button>
+              )}
+              <Button
+                type="submit"
+                variant="contained"
+                startIcon={<SearchIcon />}
+                disabled={isLoading || !searchInput.trim()}
+                sx={{
+                  backgroundColor: "#e63946",
+                  "&:hover": {
+                    backgroundColor: "#cc2f3a",
+                    transform: "translateY(-1px)",
+                    boxShadow: 6,
+                  },
+                }}
+              >
+                Search
+              </Button>
             </Box>
           )}
+
+          <Box>
+            <PokemonTypeSelection {...typeSelectionProps} />
+          </Box>
         </Stack>
       </Paper>
 
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="body2" color="text.secondary">
-          {debouncedSearch
-            ? `Search results for "${debouncedSearch}"`
-            : selectedType
-              ? `Showing ${selectedType}-type Pokemon`
-              : "Showing all Pokemon"}
-        </Typography>
-      </Box>
+      {!typeOnly && (
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            {debouncedSearch
+              ? `Search results for "${debouncedSearch}"`
+              : selectedType
+                ? `Showing ${selectedType}-type Pokemon`
+                : "Showing all Pokemon"}
+          </Typography>
+        </Box>
+      )}
 
       <PokemonTable
         pokemon={displayData.pokemon}
@@ -183,7 +214,7 @@ export function FilterablePokedexTable() {
         error={errorMessage ? new Error(errorMessage) : null}
       />
 
-      {!debouncedSearch && displayData.pageCount > 1 && (
+      {displayData.pageCount > 1 && (
         <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
           <Pagination
             count={displayData.pageCount}
