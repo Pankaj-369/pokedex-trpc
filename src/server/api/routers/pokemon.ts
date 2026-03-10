@@ -2,25 +2,28 @@ import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
 
 export const pokemonRouter = createTRPCRouter({
-  // Part 1: Get single Pokemon by name
+
   getByName: publicProcedure
     .input(
       z.object({
-        name: z.string().min(1, "Pokemon name is required"),
+        name: z.string().trim().min(1, "Pokemon name is required"),
       })
     )
     .query(async ({ ctx, input }) => {
-      const pokemon = await ctx.db.pokemon.findUnique({
-        where: {
-          name: input.name,
-        },
-        select: {
-          id: true,
-          name: true,
-          types: true,
-          sprite: true,
-        },
-      });
+      const result = await ctx.db.$queryRaw<
+        Array<{
+          id: number;
+          name: string;
+          types: string;
+          sprite: string;
+        }>
+      >`
+        SELECT id, name, types, sprite
+        FROM "Pokemon"
+        WHERE LOWER(name) = LOWER(${input.name})
+        LIMIT 1
+      `;
+      const pokemon = result[0];
 
       if (!pokemon) {
         throw new Error(`Pokemon "${input.name}" not found`);
@@ -40,18 +43,21 @@ export const pokemonRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const pokemon = await ctx.db.pokemon.findMany({
-        where: {
-          name: {
-            in: input.names,
-          },
-        },
-        select: {
-          id: true,
-          name: true,
-          types: true,
-          sprite: true,
-        },
-      });
+  where: {
+    OR: input.names.map((name) => ({
+      name: {
+        equals: name,
+        mode: "insensitive",
+      },
+    })),
+  },
+  select: {
+    id: true,
+    name: true,
+    types: true,
+    sprite: true,
+  },
+});
 
       return pokemon.map((p) => ({
         ...p,
@@ -97,7 +103,6 @@ export const pokemonRouter = createTRPCRouter({
       };
     }),
 
-  // Part 3: Get Pokemon by type with pagination
   getByType: publicProcedure
     .input(
       z.object({
@@ -113,6 +118,7 @@ export const pokemonRouter = createTRPCRouter({
         ? {
           types: {
             contains: input.type,
+            mode: "insensitive",
           },
         }
         : {};
