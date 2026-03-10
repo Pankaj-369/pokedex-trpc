@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
 import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
 import { getPokemonBasicByName } from "@/server/utils/pokeapi";
@@ -32,10 +32,12 @@ export const pokemonRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const normalizedName = toPokemonNameCase(input.name);
-      const pokemon = await ctx.db.pokemon.findUnique({
+      const searchTerm = input.name.trim();
+      const pokemon = await ctx.db.pokemon.findMany({
         where: {
-          name: normalizedName,
+          name: {
+            contains: searchTerm,
+          },
         },
         select: {
           id: true,
@@ -43,23 +45,28 @@ export const pokemonRouter = createTRPCRouter({
           types: true,
           sprite: true,
         },
+        orderBy: {
+          id: "asc",
+        },
       });
 
-      if (pokemon) {
-        return toPokemonDto(pokemon);
+      if (pokemon.length > 0) {
+        return pokemon.map(toPokemonDto);
       }
 
       try {
-        const pokeApiPokemon = await getPokemonBasicByName(input.name);
+        const pokeApiPokemon = await getPokemonBasicByName(searchTerm);
 
-        return {
-          id: pokeApiPokemon.id,
-          name: toPokemonNameCase(pokeApiPokemon.name),
-          types: pokeApiPokemon.types,
-          sprite: pokeApiPokemon.sprite,
-        };
+        return [
+          {
+            id: pokeApiPokemon.id,
+            name: toPokemonNameCase(pokeApiPokemon.name),
+            types: pokeApiPokemon.types,
+            sprite: pokeApiPokemon.sprite,
+          },
+        ];
       } catch {
-        throw new Error(`Pokemon "${input.name}" not found`);
+        return [];
       }
     }),
 
