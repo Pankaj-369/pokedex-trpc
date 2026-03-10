@@ -2,7 +2,7 @@
 
 import SearchIcon from "@mui/icons-material/Search";
 import { Alert, Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { PokemonTable } from "@/app/components/PokemonTable";
 import { CACHE_CONFIG } from "@/lib/cache-config";
@@ -11,19 +11,11 @@ import { trpc } from "@/trpc/client";
 
 export function NameSearchPanel() {
   const [nameInput, setNameInput] = useState("");
-  const [debouncedName, setDebouncedName] = useState("");
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedName(nameInput.trim());
-    }, 400);
-
-    return () => clearTimeout(timer);
-  }, [nameInput]);
+  const [submittedName, setSubmittedName] = useState("");
 
   const nameQuery = trpc.pokemon.getByName.useQuery(
-    { name: debouncedName },
-    { ...CACHE_CONFIG.search, enabled: debouncedName.length > 0, retry: false },
+    { name: submittedName },
+    { ...CACHE_CONFIG.search, enabled: submittedName.length > 0, retry: false },
   );
 
   return (
@@ -39,11 +31,11 @@ export function NameSearchPanel() {
             event.preventDefault();
             const nextName = nameInput.trim();
             if (!nextName) return;
-            if (nextName === debouncedName) {
+            if (nextName === submittedName) {
               void nameQuery.refetch();
               return;
             }
-            setDebouncedName(nextName);
+            setSubmittedName(nextName);
           }}
           sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", alignItems: "flex-start" }}
         >
@@ -52,7 +44,7 @@ export function NameSearchPanel() {
             placeholder="Type a Pokemon name..."
             value={nameInput}
             onChange={(event) => setNameInput(event.target.value)}
-            helperText="Results update automatically while you type."
+            helperText="Press Enter or click Search to see results."
             sx={{ flex: 1, minWidth: 280 }}
           />
           <Button
@@ -69,7 +61,7 @@ export function NameSearchPanel() {
           </Button>
         </Box>
 
-        {!debouncedName ? (
+        {!submittedName ? (
           <Alert severity="info">Type a name to see results.</Alert>
         ) : nameQuery.error ? (
           <Alert severity="error">{getErrorMessage(nameQuery.error)}</Alert>
