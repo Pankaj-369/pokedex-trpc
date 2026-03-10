@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
+import { getPokemonBasicByName } from "@/server/utils/pokeapi";
 
 type PokemonRow = {
   id: number;
@@ -31,9 +32,10 @@ export const pokemonRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
+      const normalizedName = toPokemonNameCase(input.name);
       const pokemon = await ctx.db.pokemon.findUnique({
         where: {
-          name: toPokemonNameCase(input.name),
+          name: normalizedName,
         },
         select: {
           id: true,
@@ -43,11 +45,22 @@ export const pokemonRouter = createTRPCRouter({
         },
       });
 
-      if (!pokemon) {
-        throw new Error(`Pokemon "${input.name}" not found`);
+      if (pokemon) {
+        return toPokemonDto(pokemon);
       }
 
-      return toPokemonDto(pokemon);
+      try {
+        const pokeApiPokemon = await getPokemonBasicByName(input.name);
+
+        return {
+          id: pokeApiPokemon.id,
+          name: toPokemonNameCase(pokeApiPokemon.name),
+          types: pokeApiPokemon.types,
+          sprite: pokeApiPokemon.sprite,
+        };
+      } catch {
+        throw new Error(`Pokemon "${input.name}" not found`);
+      }
     }),
 
   getByNames: publicProcedure

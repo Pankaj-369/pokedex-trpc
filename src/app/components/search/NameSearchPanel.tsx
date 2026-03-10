@@ -45,7 +45,7 @@ export function NameSearchPanel() {
 
   const nameQuery = trpc.pokemon.getByName.useQuery(
     { name: submittedName },
-    { enabled: submittedName.length > 0, retry: false },
+    { enabled: submittedName.length > 0, retry: false, staleTime: 10 * 60 * 1000 },
   );
 
   return (

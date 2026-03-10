@@ -44,6 +44,10 @@ export function PokemonRow({ pokemon }: { pokemon: Pokemon }) {
         "&:hover": {
           backgroundColor: "#f5f5f5",
         },
+        "&:hover .pokemon-avatar": {
+          transform: "scale(1.12)",
+          boxShadow: "0 10px 20px rgba(0, 0, 0, 0.18)",
+        },
       }}
     >
       <TableCell align="center" sx={{ fontWeight: 600 }}>
@@ -52,12 +56,18 @@ export function PokemonRow({ pokemon }: { pokemon: Pokemon }) {
       <TableCell>
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <Avatar
+            className="pokemon-avatar"
             src={pokemon.sprite}
             alt={pokemon.name}
             sx={{
               width: 56,
               height: 56,
               backgroundColor: "#f0f0f0",
+              transition: "transform 220ms ease, box-shadow 220ms ease",
+              "&:hover": {
+                transform: "scale(1.12)",
+                boxShadow: "0 10px 20px rgba(0, 0, 0, 0.18)",
+              },
             }}
           />
           <span style={{ fontWeight: 500 }}>{pokemon.name}</span>

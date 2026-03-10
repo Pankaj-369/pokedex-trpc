@@ -2,6 +2,7 @@
 
 import { Box, Button, Container, Grid, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
+import CatchingPokemonIcon from "@mui/icons-material/CatchingPokemon";
 
 const pokemonImageSx = {
   width: "100%",
@@ -111,7 +112,7 @@ export function HomeHero() {
                 },
               }}
             >
-              Open Your Pokedex
+              Open Your Pokedex<CatchingPokemonIcon/>
             </Button>
           </Box>
         </Grid>

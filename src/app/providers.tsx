@@ -24,9 +24,7 @@ const getStoredMode = (): ThemeMode => {
 
 const ColorModeContext = createContext<ColorModeContextValue>({
   mode: "light",
-  toggleMode: () => {
-    /* no-op until provider mounts */
-  },
+  toggleMode: () => {},
 });
 
 export const useColorMode = () => useContext(ColorModeContext);

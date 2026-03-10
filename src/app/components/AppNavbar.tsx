@@ -37,7 +37,7 @@ export function AppNavbar({ actionLabel, actionHref }: AppNavbarProps) {
         >
           <CatchingPokemonIcon sx={{ color: "secondary.main" }} />
           <Typography variant="h6" sx={{ fontWeight: 800 }}>
-            PokeDex.
+            PokeDex
           </Typography>
         </Stack>
 
