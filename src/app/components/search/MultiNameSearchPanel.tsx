@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import SearchIcon from "@mui/icons-material/Search";
 import {
   Alert,
   Autocomplete,
@@ -66,9 +67,15 @@ export function MultiNameSearchPanel() {
           component="form"
           onSubmit={(event) => {
             event.preventDefault();
-            commitInputAsChips();
+            if (inputValue.trim()) {
+              commitInputAsChips();
+              return;
+            }
+            if (queryNames.length > 0) {
+              void multiNameQuery.refetch();
+            }
           }}
-          sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}
+          sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", alignItems: "flex-start" }}
         >
           <Autocomplete
             multiple
@@ -103,7 +110,7 @@ export function MultiNameSearchPanel() {
           <Button
             type="submit"
             variant="contained"
-            disabled={!inputValue.trim()}
+            startIcon={<SearchIcon />}
             sx={{
               backgroundColor: "primary.main",
               "&:hover": { backgroundColor: "primary.dark", boxShadow: 6 },
