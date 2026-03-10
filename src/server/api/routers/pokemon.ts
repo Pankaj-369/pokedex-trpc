@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
@@ -15,8 +14,14 @@ const toPokemonDto = (pokemon: PokemonRow) => ({
   types: pokemon.types.split(",").map((type) => type.trim()),
 });
 
-const uniqueNormalizedNames = (names: string[]) =>
-  [...new Set(names.map((name) => name.trim().toLowerCase()).filter(Boolean))];
+const toPokemonNameCase = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/(^|[\s-])[a-z]/g, (segment) => segment.toUpperCase());
+
+const normalizeNames = (names: string[]) =>
+  [...new Set(names.map(toPokemonNameCase).filter(Boolean))];
 
 export const pokemonRouter = createTRPCRouter({
   getByName: publicProcedure
@@ -26,13 +31,17 @@ export const pokemonRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const result = await ctx.db.$queryRaw<PokemonRow[]>`
-        SELECT id, name, types, sprite
-        FROM Pokemon
-        WHERE LOWER(name) = LOWER(${input.name})
-        LIMIT 1
-      `;
-      const pokemon = result[0];
+      const pokemon = await ctx.db.pokemon.findUnique({
+        where: {
+          name: toPokemonNameCase(input.name),
+        },
+        select: {
+          id: true,
+          name: true,
+          types: true,
+          sprite: true,
+        },
+      });
 
       if (!pokemon) {
         throw new Error(`Pokemon "${input.name}" not found`);
@@ -48,20 +57,28 @@ export const pokemonRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const names = uniqueNormalizedNames(input.names);
+      const names = normalizeNames(input.names);
 
       if (names.length === 0) {
         return [];
       }
 
-      const pokemon = await ctx.db.$queryRaw<PokemonRow[]>(
-        Prisma.sql`
-          SELECT id, name, types, sprite
-          FROM Pokemon
-          WHERE LOWER(name) IN (${Prisma.join(names)})
-          ORDER BY id ASC
-        `,
-      );
+      const pokemon = await ctx.db.pokemon.findMany({
+        where: {
+          name: {
+            in: names,
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          types: true,
+          sprite: true,
+        },
+        orderBy: {
+          id: "asc",
+        },
+      });
 
       return pokemon.map(toPokemonDto);
     }),
@@ -112,34 +129,36 @@ export const pokemonRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const skip = (input.page - 1) * input.limit;
       const normalizedType = input.type?.toLowerCase();
-      const whereTypeSql = normalizedType
-        ? Prisma.sql`WHERE LOWER(types) LIKE ${`%${normalizedType}%`}`
-        : Prisma.empty;
+      const whereClause = normalizedType
+        ? {
+            types: {
+              contains: normalizedType,
+            },
+          }
+        : {};
 
-      const [pokemonRows, totalRows] = await Promise.all([
-        ctx.db.$queryRaw<PokemonRow[]>(
-          Prisma.sql`
-            SELECT id, name, types, sprite
-            FROM Pokemon
-            ${whereTypeSql}
-            ORDER BY id ASC
-            LIMIT ${input.limit}
-            OFFSET ${skip}
-          `,
-        ),
-        ctx.db.$queryRaw<Array<{ count: number | bigint }>>(
-          Prisma.sql`
-            SELECT COUNT(*) as count
-            FROM Pokemon
-            ${whereTypeSql}
-          `,
-        ),
+      const [pokemon, total] = await Promise.all([
+        ctx.db.pokemon.findMany({
+          where: whereClause,
+          select: {
+            id: true,
+            name: true,
+            types: true,
+            sprite: true,
+          },
+          skip,
+          take: input.limit,
+          orderBy: {
+            id: "asc",
+          },
+        }),
+        ctx.db.pokemon.count({
+          where: whereClause,
+        }),
       ]);
 
-      const total = Number(totalRows[0]?.count ?? 0);
-
       return {
-        pokemon: pokemonRows.map(toPokemonDto),
+        pokemon: pokemon.map(toPokemonDto),
         total,
         pageCount: Math.ceil(total / input.limit),
         currentPage: input.page,
